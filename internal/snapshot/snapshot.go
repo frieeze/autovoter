@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/frieeze/autovoter/http"
+	"github.com/frieeze/autovoter/internal/http"
+	"github.com/frieeze/autovoter/internal/signer"
 )
 
 // Client is a snapshot client
@@ -58,7 +59,7 @@ func (c *Client) GetProposal(ctx context.Context, space, title, label string) (s
 
 	for idx, choice := range choices {
 		if strings.Contains(choice, label) {
-			return pId, idx, nil
+			return pId, idx + 1, nil
 		}
 	}
 	return pId, 0, ErrNoMatchingChoice
@@ -103,9 +104,41 @@ func queryToBody(query string) map[string]string {
 	return map[string]string{"query": query}
 }
 
+func (c *Client) HaveAlreadyVote(ctx context.Context, address, proposal string) (bool, error) {
+	type response struct {
+		Data struct {
+			Votes []struct {
+				Created int `json:"created"`
+			} `json:"votes"`
+		} `json:"data"`
+	}
+
+	var (
+		resp  = &response{}
+		query = fmt.Sprintf(`
+		query Votes {
+			votes(
+				where: {
+					voter: "%s",
+					proposal: "%s"
+				}
+			) {
+				id
+			}
+		}`, address, proposal)
+	)
+
+	err := http.Post(ctx, c.HUB, queryToBody(query), resp)
+	if err != nil {
+		return false, fmt.Errorf("failed to fetch votes: %w", err)
+	}
+
+	return len(resp.Data.Votes) > 0, nil
+}
+
 const voteBody = `{"address":"%s","sig":"%s","data":{"domain":{"name":"snapshot","version":"0.1.4"},"types":{"Vote":[{"name":"from","type":"address"},{"name":"space","type":"string"},{"name":"timestamp","type":"uint64"},{"name":"proposal","type":"bytes32"},{"name":"choice","type":"string"},{"name":"reason","type":"string"},{"name":"app","type":"string"},{"name":"metadata","type":"string"}]},"message":{"from":"%s","space":"%s","timestamp":%d,"proposal":"%s","choice":"{\"%d\":1}","reason":"","app":"flying-penguin","metadata":"{}"}}}`
 
-func (c *Client) SendVote(ctx context.Context, message *autovoter.VoteMessage, sig string) error {
+func (c *Client) SendVote(ctx context.Context, message *signer.Vote, sig string) error {
 	body := fmt.Sprintf(voteBody,
 		message.From,
 		sig,

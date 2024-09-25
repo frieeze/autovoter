@@ -3,6 +3,7 @@ package signer
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -34,7 +35,18 @@ func New(address, privateKey string) (*Signer, error) {
 
 const message = `{"from":"%s","space":"%s","timestamp":%d,"proposal":"%s","choice":"{\"%d\":1}","reason":"","app":"flying-penguin","metadata":"{}"}`
 
-func (s *Signer) SignVote(vote *Vote) (string, error) {
+func (s *Signer) Vote(choice int, proposal, space string) (*Vote, string, error) {
+	vote := &Vote{
+		From:      s.Address,
+		Space:     space,
+		Timestamp: time.Now().Unix(),
+		Choice:    choice,
+		Proposal:  proposal,
+	}
+	sig, err := s.signVote(vote)
+	return vote, sig, err
+}
+func (s *Signer) signVote(vote *Vote) (string, error) {
 	msg := fmt.Sprintf(message, vote.From, vote.Space, vote.Timestamp, vote.Proposal, vote.Choice)
 	hash := crypto.Keccak256([]byte(msg))
 	signature, err := crypto.Sign(hash, s.PrivateKey)

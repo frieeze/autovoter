@@ -7,20 +7,20 @@ import (
 
 // Voter represents the delegate who will vote
 // is fetched from the environment variables
-type Voter struct {
-	Address    string
-	PrivateKey string
+type voter struct {
+	address    string
+	privateKey string
 }
 
-type Proposal struct {
-	Choice string
-	Space  string
-	Title  string
+type proposal struct {
+	choice string
+	space  string
+	title  string
 }
 
-type Config struct {
-	Voter    Voter
-	Proposal Proposal
+type config struct {
+	voter    voter
+	proposal proposal
 }
 
 var (
@@ -31,7 +31,7 @@ var (
 	errNoProposalTitle   = errors.New("PROPOSAL_TITLE is not set")
 )
 
-func loadConfig() (*Config, error) {
+func loadConfig() (*config, error) {
 	// Load the configuration from the environment variables
 	address, exists := os.LookupEnv("VOTER_ADDRESS")
 	if !exists {
@@ -58,15 +58,15 @@ func loadConfig() (*Config, error) {
 		return nil, errNoProposalTitle
 	}
 
-	return &Config{
-		Voter: Voter{
-			Address:    address,
-			PrivateKey: privateKey,
+	return &config{
+		voter: voter{
+			address:    address,
+			privateKey: privateKey,
 		},
-		Proposal: Proposal{
-			Choice: choice,
-			Space:  space,
-			Title:  title,
+		proposal: proposal{
+			choice: choice,
+			space:  space,
+			title:  title,
 		},
 	}, nil
 }

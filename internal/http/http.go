@@ -21,6 +21,8 @@ func Post(ctx context.Context, route string, data interface{}, recipient interfa
 		return fmt.Errorf("failed parsing request: %w", err)
 	}
 
+	fmt.Println("query", string(query))
+
 	req, err := http.NewRequestWithContext(ctx, "POST", route, bytes.NewBuffer(query))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
