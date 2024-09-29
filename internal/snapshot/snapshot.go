@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/frieeze/autovoter/internal/http"
@@ -12,6 +13,7 @@ import (
 
 // Client is a snapshot client
 type Client struct {
+	Logger    *slog.Logger
 	HUB       string
 	Sequencer string
 }
@@ -78,7 +80,7 @@ func (c *Client) queryProposals(ctx context.Context, space, title string) ([]ssP
 		query Proposals {
 			proposals(
 				where: {
-					space_in: %s,
+					space: "%s",
 					title_contains: "%s",
 					state: "active"
 				},
@@ -148,5 +150,9 @@ func (c *Client) SendVote(ctx context.Context, message *signer.Vote, sig string)
 		message.Proposal,
 		message.Choice,
 	)
-	return http.Post(ctx, c.HUB, body, nil)
+	err := http.Post(ctx, c.Sequencer, body, nil)
+	if err != nil {
+		return fmt.Errorf("failed to send vote: %w", err)
+	}
+	return nil
 }

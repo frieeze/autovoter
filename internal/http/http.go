@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 )
 
 var (
@@ -16,12 +17,19 @@ var (
 
 // Post performs a POST request to the given route with data and unmarshal the response to recipient
 func Post(ctx context.Context, route string, data interface{}, recipient interface{}) error {
-	query, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("failed parsing request: %w", err)
+	var (
+		query []byte
+		err   error
+	)
+	if reflect.TypeOf(data).String() == "string" {
+		fmt.Println(data)
+		query = []byte(data.(string))
+	} else {
+		query, err = json.Marshal(data)
+		if err != nil {
+			return fmt.Errorf("failed parsing request: %w", err)
+		}
 	}
-
-	fmt.Println("query", string(query))
 
 	req, err := http.NewRequestWithContext(ctx, "POST", route, bytes.NewBuffer(query))
 	if err != nil {
@@ -35,6 +43,11 @@ func Post(ctx context.Context, route string, data interface{}, recipient interfa
 	}
 	defer res.Body.Close()
 	if res.StatusCode >= 300 {
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			return fmt.Errorf("fail to decode response: %w", err)
+		}
+		fmt.Println(string(body))
 		return fmt.Errorf("%w : %s", ErrRequestFailed, res.Status)
 	}
 

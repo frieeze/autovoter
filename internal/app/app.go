@@ -35,8 +35,9 @@ func New(logger *slog.Logger) (*App, error) {
 	}
 
 	client := &snapshot.Client{
-		HUB:       "https://hub.snapshot.org",
-		Sequencer: "https://seq.snapshot.org",
+		Logger:    logger,
+		HUB:       "https://hub.snapshot.org/graphql",
+		Sequencer: "https://seq.snapshot.org/",
 	}
 
 	return &App{
@@ -48,22 +49,30 @@ func New(logger *slog.Logger) (*App, error) {
 }
 
 func (a *App) Start(ctx context.Context) error {
-	a.ticker = time.NewTicker(5 * time.Minute)
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-a.ticker.C:
-			a.run(ctx)
+	a.run(ctx)
+	return nil
+	/*
+		a.ticker = time.NewTicker(time.Minute)
+		defer a.ticker.Stop()
+		a.run(ctx)
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-a.ticker.C:
+				a.run(ctx)
+			}
 		}
-	}
+	*/
 }
 
 func (a *App) run(ctx context.Context) {
-	if time.Since(a.lastVote) < 10*24*time.Hour ||
-		time.Now().Weekday() != time.Thursday {
-		return
-	}
+	/*
+		if time.Since(a.lastVote) < 10*24*time.Hour ||
+			time.Now().Weekday() != time.Thursday {
+			return
+		}
+	*/
 
 	proposal, choice, err := a.ss.GetProposal(ctx, a.config.proposal.space, a.config.proposal.title, a.config.proposal.choice)
 	if err != nil {
@@ -81,6 +90,7 @@ func (a *App) run(ctx context.Context) {
 	}
 
 	if hasVoted {
+		a.logger.Info("Already voted", slog.Any("proposal", proposal))
 		a.lastVote = time.Now()
 		return
 	}
@@ -90,6 +100,7 @@ func (a *App) run(ctx context.Context) {
 		a.logger.Error("Failed to sign vote", slog.Any("error", err))
 		return
 	}
+	fmt.Println(sig)
 
 	if err := a.ss.SendVote(ctx, vote, sig); err != nil {
 		a.logger.Error("Failed to send vote", slog.Any("error", err))
