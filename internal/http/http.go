@@ -22,7 +22,6 @@ func Post(ctx context.Context, route string, data interface{}, recipient interfa
 		err   error
 	)
 	if reflect.TypeOf(data).String() == "string" {
-		fmt.Println(data)
 		query = []byte(data.(string))
 	} else {
 		query, err = json.Marshal(data)
@@ -43,12 +42,11 @@ func Post(ctx context.Context, route string, data interface{}, recipient interfa
 	}
 	defer res.Body.Close()
 	if res.StatusCode >= 300 {
-		body, err := io.ReadAll(res.Body)
-		if err != nil {
-			return fmt.Errorf("fail to decode response: %w", err)
-		}
-		fmt.Println(string(body))
 		return fmt.Errorf("%w : %s", ErrRequestFailed, res.Status)
+	}
+
+	if recipient == nil {
+		return nil
 	}
 
 	body, err := io.ReadAll(res.Body)

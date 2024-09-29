@@ -35,17 +35,6 @@ func New(address, privateKey string) (*Signer, error) {
 	}, nil
 }
 
-const message = `{
-    "from": "0xc1c39b466a3660e64bfc5c256e6b8e7083957a4a",
-    "space": "cvx.eth",
-    "timestamp": "1727621658",
-    "proposal": "0x9b1faf762db03057ec16ad3b347548a4d19bbe35d01c8b20cd725239e8c89028",
-    "choice": "{\"477\":3}",
-    "reason": "",
-    "app": "snapshot",
-    "metadata": "{}"
-}`
-
 func (s *Signer) Vote(choice int, proposal, space string) (*Vote, string, error) {
 	vote := &Vote{
 		From:      s.Address,
@@ -60,19 +49,25 @@ func (s *Signer) Vote(choice int, proposal, space string) (*Vote, string, error)
 
 func (s *Signer) signVote(vote *Vote) (string, error) {
 	data := buildMessage(vote)
-	hash := data.TypeHash("Vote")
-
-	js, err := json.Marshal(data.Map())
+	hash, err := data.HashStruct("Vote", data.Message)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal vote: %w", err)
+		return "", fmt.Errorf("failed to hash vote: %w", err)
 	}
-	fmt.Printf("signed data:\n %s \n", string(js))
+	domainSeparator, err := data.HashStruct("EIP712Domain", data.Domain.Map())
+	if err != nil {
+		return "", fmt.Errorf("failed to hash domain: %w", err)
+	}
 
-	signature, err := crypto.Sign(hash, s.PrivateKey)
+	rawData := []byte(fmt.Sprintf("\x19\x01%s%s", string(domainSeparator), string(hash)))
+
+	signature, err := crypto.Sign(crypto.Keccak256Hash(rawData).Bytes(), s.PrivateKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to sign vote: %w", err)
 	}
-	fmt.Printf("signature:\n %s \n", hexutil.Encode(signature))
+	if signature[64] != 27 && signature[64] != 28 {
+		signature[64] += 27
+	}
+
 	return hexutil.Encode(signature), nil
 }
 
@@ -102,7 +97,7 @@ func buildMessage(vote *Vote) apitypes.TypedData {
 		Message: apitypes.TypedDataMessage{
 			"from":      vote.From,
 			"space":     vote.Space,
-			"timestamp": vote.Timestamp,
+			"timestamp": fmt.Sprintf("%d", vote.Timestamp),
 			"proposal":  vote.Proposal,
 			"choice":    fmt.Sprintf("{\"%d\":1}", vote.Choice),
 			"reason":    "",

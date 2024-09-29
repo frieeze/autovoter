@@ -32,7 +32,6 @@ var (
 )
 
 func loadConfig() (*config, error) {
-	// Load the configuration from the environment variables
 	address, exists := os.LookupEnv("VOTER_ADDRESS")
 	if !exists {
 		return nil, errNoVoterAddress
