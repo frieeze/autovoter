@@ -2,7 +2,6 @@ package signer
 
 import (
 	"crypto/ecdsa"
-	"encoding/json"
 	"fmt"
 	"time"
 
