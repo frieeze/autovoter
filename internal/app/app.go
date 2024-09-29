@@ -35,8 +35,9 @@ func New(logger *slog.Logger) (*App, error) {
 	}
 
 	client := &snapshot.Client{
-		HUB:       "https://hub.snapshot.org",
-		Sequencer: "https://seq.snapshot.org",
+		Logger:    logger,
+		HUB:       "https://hub.snapshot.org/graphql",
+		Sequencer: "https://seq.snapshot.org/",
 	}
 
 	return &App{
@@ -48,7 +49,9 @@ func New(logger *slog.Logger) (*App, error) {
 }
 
 func (a *App) Start(ctx context.Context) error {
-	a.ticker = time.NewTicker(5 * time.Minute)
+	a.ticker = time.NewTicker(time.Minute)
+	defer a.ticker.Stop()
+	a.run(ctx)
 	for {
 		select {
 		case <-ctx.Done():
@@ -81,6 +84,7 @@ func (a *App) run(ctx context.Context) {
 	}
 
 	if hasVoted {
+		a.logger.Info("Already voted", slog.Any("proposal", proposal))
 		a.lastVote = time.Now()
 		return
 	}
